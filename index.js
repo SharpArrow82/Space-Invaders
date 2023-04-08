@@ -1,5 +1,6 @@
 const canvas = document.querySelector('canvas')
 const scoreEl = document.querySelector('#ScoreEl')
+const healthE3 = document.querySelector('#HealthE3')
 const c = canvas.getContext('2d')
 
 canvas.width = 1024
@@ -16,7 +17,6 @@ class Player{
         const image = new Image()
         image.src = './img/Spaceship2.png'
         image.onload = () => {
-            const scale = 0.15
             this.image = image
             this.width = image.width
             this.height = image.height
@@ -27,13 +27,9 @@ class Player{
         }
     }
 
-    draw() {
-        
-    }
 
     update() {
         if(this.image){
-        //this.draw()
         c.save()
         c.globalAlpha = this.opacity
         c.translate(player.position.x + player.width / 2, player.position.y + player.height / 2)
@@ -126,8 +122,6 @@ class Invader{
 
     update({velocity}) {
         if(this.image){
-        //this.draw()
-        
         c.drawImage(this.image, this.position.x, this.position.y, this.image.width, this.image.height)
         this.position.x += velocity.x
         this.position.y += velocity.y
@@ -148,12 +142,59 @@ class Invader{
     }
 }
 
+let DEG2RAD = Math.PI / 180
+let angle = 0
+
+class HealthUp{
+    constructor({position}) {
+        this.velocity = {
+            x: 0,
+            y: 3
+        }
+        this.position = {
+            x: position.x,
+            y: position.y
+        }
+        this.rotation = 0
+        const image = new Image()
+        image.src = './img/Capsule.png'
+        image.onload = () => {
+            this.image = image
+            this.width = image.width
+            this.height = image.height
+            this.position = {
+                x: position.x,
+                y: position.y
+            }
+        }
+    }
+
+    update() {
+        if(this.image){
+        c.save()
+        //c.translate(canvas.width/2, canvas.height/2); 
+        //c.rotate(DEG2RAD * angle)
+        c.drawImage(this.image, this.position.x, this.position.y, this.image.width, this.image.height)
+        //angle += frames / 160.67 * 6;
+        c.restore()
+        this.position.x += this.velocity.x
+        this.position.y += this.velocity.y
+
+        //this.velocity.y = 0
+        }
+    }
+
+    
+    
+}
+
+
 class InvaderProjectile{
     constructor({position, velocity}){
         this.position = position
         this.velocity = velocity
 
-        this.width = 6
+        this.width = 5
         this.height = 15
     }
 
@@ -226,6 +267,7 @@ const projectiles = []
 const grids = []
 const InvaderProjectiles = []
 const particles = []
+const healthsUp = []//new HealthUp()
 const Keys = {
     a: {
         pressed: false
@@ -237,7 +279,7 @@ const Keys = {
         pressed: false
     }
 }
-player.draw()
+//player.draw()
 
 function createStars(){
     for(let i = 0; i < 1 ; i++){
@@ -257,7 +299,6 @@ function createStars(){
     }
 }
 
-
 function createParticles({object, color}){
     for(let i = 0; i < 15 ; i++){
         particles.push(new Particle({
@@ -276,13 +317,18 @@ function createParticles({object, color}){
     }
 }
 
+
+
 let frames = 0
 let randomInterval = Math.floor((Math.random() * 500) + 500)
+let randomInterval2 = Math.floor((Math.random() * 500) + 800)
 let game = {
     over: false,
     active: true
 }
 let score = 0
+let lives = 3
+let healthRotation = 0
 function animate()
 {
     if(!game.active) return
@@ -293,6 +339,12 @@ function animate()
     {
     createStars()
     }
+
+    //if(frames % 20 === 0)
+    //{
+    //    throwHealth()
+    //}
+    
     player.update()
     //console.log(player.width)
     //console.log(player.position.x)
@@ -321,16 +373,53 @@ function animate()
             && InvaderProjectile.position.x <= player.position.x + player.width){
                 console.log('Lost')
                 setTimeout(() => {
+                    if(lives > 0){
+                        let heartID = 'Heart'
+                        let element = document.getElementById(heartID.concat(lives.toString()));
+                        element.setAttribute("hidden", "hidden");
+                        lives--
+                    }
+                    
                     InvaderProjectiles.splice(index, 1)
+                    if(lives <= 0) {
                     player.opacity = 0
-                game.over = true
+                        game.over = true
+                        setTimeout(() => {
+                            game.active = false
+                           }, 2000)
+                    }
                 }, 0)
-                setTimeout(() => {
-                    game.active = false
-                }, 2000)
-                
                 createParticles({object: player, color: 'white', fades: true})
             }
+    })
+
+    healthsUp.forEach((healthUps, index) => {
+        healthRotation += 10
+        if(healthRotation <= 360){
+            healthUps.rotation = healthRotation
+        } else {
+            healthUps.rotation = 0
+        }
+
+        if(healthUps.position.y + healthUps.height >= canvas.height){
+            setTimeout(() => {
+                healthsUp.splice(index, 1)
+            }, 0)
+        }
+        
+            if(healthUps.position.y + healthUps.height >= player.position.y && healthUps.position.x >= player.position.x
+            && healthUps.position.x <= player.position.x + player.width){
+                if(lives < 3){
+                lives++
+                let heartID = 'Heart'
+                let element = document.getElementById(heartID.concat(lives.toString()));
+                element.removeAttribute("hidden", "hidden");
+                }
+                healthsUp.splice(index, 1)
+            }
+        
+        
+
     })
 
     projectiles.forEach((projectile, index) => {
@@ -378,6 +467,17 @@ function animate()
         })
     })
 
+    healthsUp.forEach((healths, healthIndex) => {
+        
+        healths.update()
+        if(healths.position.y + healths.height >= canvas.height)
+        {
+            setTimeout(() => {
+                healthsUp.splice(healthIndex, 1)
+            })
+        }
+    })
+
     if(Keys.a.pressed && player.position.x >= 0)
     {
         player.velocity.x = -8
@@ -399,6 +499,20 @@ function animate()
 if(frames % randomInterval === 0)
 {
     grids.push(new Grid())
+}
+
+if(frames % randomInterval2 === 0)
+{
+    console.log(randomInterval2)
+    let posX = Math.floor(Math.random() * canvas.width + 100)
+    healthsUp.push(new HealthUp({
+        position: {
+            x: posX,
+            y: 0
+        }
+        
+    }))
+    console.log("Position x: " + posX)
 }
 
     frames++
